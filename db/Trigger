@@ -1,0 +1,67 @@
+CREATE TRIGGER `Update` AFTER UPDATE ON `deposit`
+ FOR EACH ROW UPDATE total_deposit set total_deposit= (select sum(jumlah_depos) from deposit where id_klien=OLD.id_klien) where total_deposit.id_klien = OLD.id_klien
+//
+CREATE TRIGGER `update_total_deposit_berdasarkat_status` AFTER UPDATE ON `beli_tiket`
+ FOR EACH ROW BEGIN
+
+DECLARE sisa_deposits BIGINT unsigned DEFAULT 0;
+DECLARE total_sisa BIGINT unsigned DEFAULT 0;
+if(new.status=1) then
+    set sisa_deposits = (select total_deposit.total_deposit FROM total_deposit where id_klien=old.id_klien);
+
+    set total_sisa = (sisa_deposits - old.jumlah_total);
+
+    update total_deposit set total_deposit = total_sisa where id_klien= old.id_klien;
+end if;
+end//
+
+CREATE TRIGGER `update_total_deposit_from_deposit` AFTER INSERT ON `deposit`
+ FOR EACH ROW BEGIN
+DECLARE total_dep int DEFAULT 0;
+set total_dep = (SELECT total_deposit.total_deposit from total_deposit where id_klien = new.id_klien);
+
+	UPDATE total_deposit set total_deposit= (total_dep+new.jumlah_depos) where total_deposit.id_klien = new.id_klien;
+
+END//
+
+CREATE TRIGGER `update_total_deposit_from_beli_tiket` AFTER INSERT ON `beli_tiket`
+ FOR EACH ROW BEGIN
+
+DECLARE tarif INT unsigned DEFAULT 0;
+DECLARE deposit INT unsigned DEFAULT 0;
+
+
+end//
+
+CREATE TRIGGER `update_total_deposit_pada_saat_dihapus` AFTER DELETE ON `deposit`
+ FOR EACH ROW BEGIN
+DECLARE countIDcline int DEFAULT 0;
+DECLARE deposit_yg_dihapus BIGINT DEFAULT 0;
+DECLARE total_deposit_yg_sebelumnya BIGINT DEFAULT 0;
+
+set countIDcline = (select count(id_klien) from deposit where id_klien=OLD.id_klien);
+
+set deposit_yg_dihapus = (select jumlah_depos from deposit where id=OLD.id);
+
+set total_deposit_yg_sebelumnya = (select total_deposit from total_deposit where id_klien=OLD.id_klien);
+
+    if countIDcline =0 then
+    	DELETE from total_deposit where id_klien = old.id_klien;
+    else
+    	update total_deposit set total_deposit.total_deposit = total_deposit_yg_sebelumnya-OLD.jumlah_depos where id_klien = old.id_klien;
+    end if;
+end//
+
+CREATE TRIGGER `update_total_depost_setelah_hapus` AFTER DELETE ON `beli_tiket`
+ FOR EACH ROW BEGIN
+
+DECLARE sisa_deposits BIGINT unsigned DEFAULT 0;
+DECLARE total_sisa BIGINT unsigned DEFAULT 0;
+if(old.status=1) then
+    set sisa_deposits = (select total_deposit.total_deposit FROM total_deposit where id_klien=old.id_klien);
+
+    set total_sisa = (sisa_deposits + old.jumlah_total);
+
+    update total_deposit set total_deposit = total_sisa where id_klien= old.id_klien;
+end if;
+end//
